@@ -44,6 +44,12 @@ func WsAutoReconnectOption(autoReconnect bool) WsParameterOption {
 	}
 }
 
+func WsReSubscribeOption(reSubscribe bool) WsParameterOption {
+	return func(p *WsParameter) {
+		p.ReSubscribe = reSubscribe
+	}
+}
+
 func WsDumpOption(dump bool) WsParameterOption {
 	return func(p *WsParameter) {
 		p.IsDump = dump
@@ -53,6 +59,12 @@ func WsDumpOption(dump bool) WsParameterOption {
 func WsMessageHandleFuncOption(f func([]byte) error) WsParameterOption {
 	return func(p *WsParameter) {
 		p.MessageHandleFunc = f
+	}
+}
+
+func WsReSubscribeFuncOption(f func() error) WsParameterOption {
+	return func(p *WsParameter) {
+		p.ReSubscribeFunc = f
 	}
 }
 
