@@ -9,61 +9,6 @@ import (
 	"time"
 )
 
-type WsParameter struct {
-	WsUrl             string
-	ReqHeaders        map[string][]string
-	Dialer            *websocket.Dialer
-	MessageHandleFunc func([]byte) error
-	ErrorHandleFunc   func(err error)
-	AutoReconnect     bool
-	IsDump            bool
-	readDeadLineTime  time.Duration
-}
-
-type WsParameterOption func(p *WsParameter)
-
-func WsUrlOption(wsUrl string) WsParameterOption {
-	return func(p *WsParameter) {
-		p.WsUrl = wsUrl
-	}
-}
-
-func WsReqHeaderOption(key, value string) WsParameterOption {
-	return func(p *WsParameter) {
-		p.ReqHeaders[key] = append(p.ReqHeaders[key], value)
-	}
-}
-
-func WsDialerOption(dialer *websocket.Dialer) WsParameterOption {
-	return func(p *WsParameter) {
-		p.Dialer = dialer
-	}
-}
-
-func WsAutoReconnectOption(autoReconnect bool) WsParameterOption {
-	return func(p *WsParameter) {
-		p.AutoReconnect = autoReconnect
-	}
-}
-
-func WsDumpOption(dump bool) WsParameterOption {
-	return func(p *WsParameter) {
-		p.IsDump = dump
-	}
-}
-
-func WsMessageHandleFuncOption(f func([]byte) error) WsParameterOption {
-	return func(p *WsParameter) {
-		p.MessageHandleFunc = f
-	}
-}
-
-func WsErrorHandleFuncOption(f func(err error)) WsParameterOption {
-	return func(p *WsParameter) {
-		p.ErrorHandleFunc = f
-	}
-}
-
 type WsConn struct {
 	WsParameter
 
@@ -74,6 +19,11 @@ type WsConn struct {
 	closeMessageBufferChan chan []byte
 	subs                   []interface{}
 	close                  chan struct{}
+}
+
+func (ws *WsConn) setDefaultWsParameter() {
+	ws.AutoReconnect = true
+	ws.ReSubscribe = true
 }
 
 func (ws *WsConn) connect() error {
@@ -124,11 +74,19 @@ func (ws *WsConn) reconnect() {
 		}
 	} else {
 		// re-subscribe
-		var subs []interface{}
-		copy(subs, ws.subs)
-		ws.subs = ws.subs[:0]
-		for _, sub := range subs {
-			ws.Subscribe(sub)
+		if ws.ReSubscribe {
+			var subs []interface{}
+			copy(subs, ws.subs)
+			ws.subs = ws.subs[:0]
+			for _, sub := range subs {
+				ws.Subscribe(sub)
+			}
+		}
+		if ws.ReSubscribeFunc != nil {
+			err = ws.ReSubscribeFunc()
+			if err != nil {
+				log.Printf("[ws] websocket re-subscribe fail, %s", err.Error())
+			}
 		}
 	}
 }
@@ -168,7 +126,9 @@ func (ws *WsConn) Subscribe(sub interface{}) error {
 		return err
 	}
 	ws.writeBufferChan <- data
-	ws.subs = append(ws.subs, sub)
+	if ws.ReSubscribe {
+		ws.subs = append(ws.subs, sub)
+	}
 	return nil
 }
 
@@ -278,6 +238,8 @@ func (ws *WsConn) Close() {
 
 func NewWs(opts ...WsParameterOption) *WsConn {
 	ws := &WsConn{}
+	ws.setDefaultWsParameter()
+
 	for _, opt := range opts {
 		opt(&ws.WsParameter)
 	}
