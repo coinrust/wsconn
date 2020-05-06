@@ -83,7 +83,7 @@ func (ws *WsConn) reconnect() {
 			}
 		}
 		if ws.ReSubscribeFunc != nil {
-			err = ws.ReSubscribeFunc()
+			err = ws.ReSubscribeFunc(ws)
 			if err != nil {
 				log.Printf("[ws] websocket re-subscribe fail, %s", err.Error())
 			}

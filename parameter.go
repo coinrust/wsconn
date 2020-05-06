@@ -10,7 +10,7 @@ type WsParameter struct {
 	ReqHeaders        map[string][]string
 	Dialer            *websocket.Dialer
 	MessageHandleFunc func([]byte) error
-	ReSubscribeFunc   func() error // 短线重连后触发，你可以重新订阅，因为有些订阅跟当前时间相关
+	ReSubscribeFunc   func(ws *WsConn) error // 短线重连后触发，你可以重新订阅，因为有些订阅跟当前时间相关
 	ErrorHandleFunc   func(err error)
 	AutoReconnect     bool // 自动重连(默认: true)
 	ReSubscribe       bool // 自动重新订阅(默认: true)
@@ -62,7 +62,7 @@ func WsMessageHandleFuncOption(f func([]byte) error) WsParameterOption {
 	}
 }
 
-func WsReSubscribeFuncOption(f func() error) WsParameterOption {
+func WsReSubscribeFuncOption(f func(ws *WsConn) error) WsParameterOption {
 	return func(p *WsParameter) {
 		p.ReSubscribeFunc = f
 	}
