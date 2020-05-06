@@ -61,6 +61,7 @@ type WsConn struct {
 	WsParameter
 
 	c                      *websocket.Conn
+	dialer                 *websocket.Dialer
 	writeBufferChan        chan []byte
 	pingMessageBufferChan  chan []byte
 	closeMessageBufferChan chan []byte
@@ -69,9 +70,7 @@ type WsConn struct {
 }
 
 func (ws *WsConn) connect() error {
-	dialer := websocket.DefaultDialer
-
-	wsConn, resp, err := dialer.Dial(ws.WsUrl, ws.ReqHeaders)
+	wsConn, resp, err := ws.dialer.Dial(ws.WsUrl, ws.ReqHeaders)
 	if err != nil {
 		log.Printf("[ws][%s] error: %s", ws.WsUrl, err.Error())
 		if ws.IsDump && resp != nil {
@@ -149,6 +148,10 @@ func (ws *WsConn) writeRequest() {
 			time.Sleep(time.Second)
 		}
 	}
+}
+
+func (ws *WsConn) Dialer() *websocket.Dialer {
+	return ws.dialer
 }
 
 func (ws *WsConn) Subscribe(sub interface{}) error {
@@ -267,7 +270,9 @@ func (ws *WsConn) Close() {
 }
 
 func NewWs(opts ...WsParameterOption) *WsConn {
-	ws := &WsConn{}
+	ws := &WsConn{
+		dialer: websocket.DefaultDialer,
+	}
 	ws.readDeadLineTime = time.Minute
 
 	for _, opt := range opts {
