@@ -12,6 +12,7 @@ import (
 type WsParameter struct {
 	WsUrl             string
 	ReqHeaders        map[string][]string
+	Dialer            *websocket.Dialer
 	MessageHandleFunc func([]byte) error
 	ErrorHandleFunc   func(err error)
 	AutoReconnect     bool
@@ -30,6 +31,12 @@ func WsUrlOption(wsUrl string) WsParameterOption {
 func WsReqHeaderOption(key, value string) WsParameterOption {
 	return func(p *WsParameter) {
 		p.ReqHeaders[key] = append(p.ReqHeaders[key], value)
+	}
+}
+
+func WsDialerOption(dialer *websocket.Dialer) WsParameterOption {
+	return func(p *WsParameter) {
+		p.Dialer = dialer
 	}
 }
 
@@ -270,14 +277,17 @@ func (ws *WsConn) Close() {
 }
 
 func NewWs(opts ...WsParameterOption) *WsConn {
-	ws := &WsConn{
-		dialer: websocket.DefaultDialer,
-	}
-	ws.readDeadLineTime = time.Minute
-
+	ws := &WsConn{}
 	for _, opt := range opts {
 		opt(&ws.WsParameter)
 	}
+
+	if ws.WsParameter.Dialer != nil {
+		ws.dialer = ws.WsParameter.Dialer
+	} else {
+		ws.dialer = DefaultDialer()
+	}
+	ws.readDeadLineTime = time.Minute
 
 	if err := ws.connect(); err != nil {
 		log.Panic(err)
@@ -291,4 +301,8 @@ func NewWs(opts ...WsParameterOption) *WsConn {
 	go ws.writeRequest()
 	go ws.receiveMessage()
 	return ws
+}
+
+func DefaultDialer() *websocket.Dialer {
+	return websocket.DefaultDialer
 }
